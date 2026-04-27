@@ -5,7 +5,6 @@ from typing import Optional
 
 from src.application.routines.patrol import routine_patrol
 from src.application.services.logging_service import LoggingService
-from src.application.services.speaking_service import SpeakingService
 from src.infrastructure.redis_adapter import RedisAdapter
 from src.infrastructure.robot_adapter import RobotAdapter
 
@@ -24,33 +23,27 @@ class RobotRoutine:
 		robot_adapter: RobotAdapter,
 		redis_adapter: RedisAdapter,
 		logging_service: LoggingService,
-		speaking_service: SpeakingService,
 		command_channel: str = "threat",
 	) -> None:
 		self._robot = robot_adapter
 		self._redis = redis_adapter
 		self._logging = logging_service
-		self._speaking = speaking_service
 		self._command_channel = command_channel
 		self.running = False
 
 	def _handle_command(self, command: str) -> None:
 		cmd = command.strip().lower()
 		self._logging.info(f"Command received: {cmd!r}")
-		self._speaking.text_to_voice(f"Command received: {cmd}")
 
 		if cmd in {"stop", "halt"}:
-			self._speaking.text_to_voice("Stopping robot")
 			self._robot.stop()
 			return
 
 		if cmd in {"knife", "gun"}:
-			self._speaking.text_to_voice("Threat signal received. Running patrol routine.")
 			routine_patrol(robot_adapter=self._robot)
 			return
 
 		self._logging.warning(f"Unknown command: {cmd!r}. Try 'patrol' or 'stop'.")
-		self._speaking.text_to_voice("Unknown command")
 
 	def _consume_commands(self) -> None:
 		for message in self._redis.consume(self._command_channel):
