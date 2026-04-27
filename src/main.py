@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.dependencies import get_robot_routine
+from src.presentation.dependencies import get_robot_routine
 
 
 def main() -> None:
