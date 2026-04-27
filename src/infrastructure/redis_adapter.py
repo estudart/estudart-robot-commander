@@ -15,7 +15,7 @@ class RedisAdapter:
 
 	def __init__(
 		self,
-		host: str = "localhost",
+		host: str = "192.168.68.100",
 		port: int = 6379,
 		db: int = 0,
 		*,
@@ -25,12 +25,16 @@ class RedisAdapter:
 			raise RuntimeError(
 				"Missing dependency 'redis'. Install with: python -m pip install -r requirements.txt"
 			)
-		self._client = redis.Redis(
-			host=host,
-			port=port,
-			db=db,
-			decode_responses=decode_responses,
-		)
+		try:
+			self._client = redis.Redis(
+				host=host,
+				port=port,
+				db=db,
+				decode_responses=decode_responses,
+			)
+			print("Connection with Redis stablished")
+		except Exception as err:
+			print(err)
 
 	def publish(self, channel: str, message: str) -> int:
 		"""Publish ``message`` to ``channel``. Returns subscriber count that received it."""

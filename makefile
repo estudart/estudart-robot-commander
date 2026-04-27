@@ -1,28 +1,72 @@
-# Define variables for reuse
-IMAGE_NAME = raspberry-pi-wss-server
-CONTAINER_NAME = raspberry-pi-wss-server-container
+# =========================
+# Variables
+# =========================
+API_IMAGE_NAME = raspberry-pi-wss-server
+API_CONTAINER_NAME = raspberry-pi-wss-server-container
 
-# .PHONY tells Make these aren't files to be created
-.PHONY: build up down clean
+WORKER_IMAGE_NAME = raspberry-pi-worker
+WORKER_CONTAINER_NAME = raspberry-pi-worker-container
 
-# Build the Docker image
-build:
-	docker build -t $(IMAGE_NAME) .
+.PHONY: build-api build-worker up-api up-worker down-api down-worker clean run
 
-# Start the container
-up:
-	docker run -d --name $(CONTAINER_NAME) -p 8080:80 $(IMAGE_NAME)
+# =========================
+# Build
+# =========================
+build-api:
+	docker build -f Dockerfile.api -t $(API_IMAGE_NAME) .
 
-# Run the service
-run:
-	docker build -t $(IMAGE_NAME) .
-	docker run --name $(CONTAINER_NAME) -p 8080:80 $(IMAGE_NAME)
+build-worker:
+	docker build -f Dockerfile.worker -t $(WORKER_IMAGE_NAME) .
 
-# Stop and remove the container
-down:
-	docker stop $(CONTAINER_NAME) || true
-	docker rm $(CONTAINER_NAME) || true
+build: build-api build-worker
 
-# Clean up local images
+# =========================
+# Run containers
+# =========================
+up-api:
+	docker run -d \
+		--name $(API_CONTAINER_NAME) \
+		-p 8000:8000 \
+		$(API_IMAGE_NAME)
+
+up-worker:
+	docker run -d \
+		--name $(WORKER_CONTAINER_NAME) \
+		$(WORKER_IMAGE_NAME)
+
+logs-api:
+	docker logs -f $(API_CONTAINER_NAME)
+
+logs-worker:
+	docker logs -f $(WORKER_CONTAINER_NAME)
+
+logs:
+	@echo "Following logs for: $(API_CONTAINER_NAME) and $(WORKER_CONTAINER_NAME)"
+	@docker logs -f $(API_CONTAINER_NAME) & docker logs -f $(WORKER_CONTAINER_NAME)
+
+up: up-api up-worker logs
+
+# =========================
+# Stop & remove
+# =========================
+down-api:
+	docker stop $(API_CONTAINER_NAME) || true
+	docker rm $(API_CONTAINER_NAME) || true
+
+down-worker:
+	docker stop $(WORKER_CONTAINER_NAME) || true
+	docker rm $(WORKER_CONTAINER_NAME) || true
+
+down: down-api down-worker
+
+# =========================
+# Full run (build + up)
+# =========================
+run: build up
+
+# =========================
+# Cleanup
+# =========================
 clean: down
-	docker rmi $(IMAGE_NAME)
+	docker rmi $(API_IMAGE_NAME) || true
+	docker rmi $(WORKER_IMAGE_NAME) || true
