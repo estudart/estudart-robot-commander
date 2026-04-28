@@ -19,9 +19,9 @@ def _parse_args() -> argparse.Namespace:
 	parser.add_argument("--alert-channel", default="threat")
 	parser.add_argument(
 		"--mode",
-		choices=["command", "alert"],
+		choices=["command", "alert", "movement"],
 		default="command",
-		help="Send only command messages or only alert messages (single channel per run).",
+		help="Send only command, alert, or movement messages (single channel per run).",
 	)
 	parser.add_argument("--interval", type=float, default=10.0)
 	parser.add_argument(
@@ -50,12 +50,22 @@ async def _run(
 
 	async with websockets.connect(url) as ws:
 		for cmd in itertools.cycle(commands):
-			# Send JSON payload with explicit channel.
 			c = str(cmd).strip().lower()
 			# IMPORTANT: the server requires an explicit channel on every message.
-			# This test sends to a single channel per run (mode).
-			channel = alert_channel if mode == "alert" else command_channel
-			payload = json.dumps({"channel": channel, "command": c})
+			if mode == "alert":
+				payload = json.dumps({"channel": alert_channel, "command": c})
+			elif mode == "movement":
+				# Commands list can be: forward,left,right,stop
+				payload = json.dumps(
+					{
+						"channel": command_channel,
+						"type": "movement",
+						"direction": c,
+						"duration_s": 0.5,
+					}
+				)
+			else:
+				payload = json.dumps({"channel": command_channel, "command": c})
 			await ws.send(payload)
 			print(f"sent: {payload} -> {url}")
 			await asyncio.sleep(interval_s)

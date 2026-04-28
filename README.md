@@ -70,6 +70,7 @@ Examples (explicit channels):
 ```bash
 python -m src.tests.websocket_publish_test --mode command --command-channel robot-command --alert-channel threat --commands "stop"
 python -m src.tests.websocket_publish_test --mode alert --command-channel robot-command --alert-channel threat --commands "knife,gun"
+python -m src.tests.websocket_publish_test --mode movement --command-channel robot-command --alert-channel threat --commands "forward,left,right,stop"
 ```
 
 ### Option B: manual Redis publish (worker channel)
