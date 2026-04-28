@@ -13,7 +13,7 @@ class LoggingService:
 
 		if not self._logger.handlers:
 			handler = logging.StreamHandler()
-			formatter = logging.Formatter("[%(asctime)s] [%(levelname)s] %(message)s")
+			formatter = logging.Formatter("[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s")
 			handler.setFormatter(formatter)
 			self._logger.addHandler(handler)
 

@@ -9,7 +9,6 @@ from src.infrastructure.redis_adapter import RedisAdapter
 from src.infrastructure.robot_adapter import RobotAdapter
 
 
-_logging_service: Optional[LoggingService] = None
 _redis_adapter: Optional[RedisAdapter] = None
 _robot_adapter: Optional[RobotAdapter] = None
 _robot_worker: Optional[RobotWorker] = None
@@ -21,11 +20,8 @@ _ALERT_CHANNEL = "threat"
 _REDIS_HOST = "192.168.68.100"
 
 
-def get_logging_service() -> LoggingService:
-	global _logging_service
-	if not _logging_service:
-		_logging_service = LoggingService(name="RobotCommander")
-	return _logging_service
+def get_logging_service(name: str) -> LoggingService:
+	return LoggingService(name=name)
 
 
 def get_redis_adapter() -> RedisAdapter:
@@ -38,7 +34,7 @@ def get_redis_adapter() -> RedisAdapter:
 def get_robot_adapter() -> RobotAdapter:
 	global _robot_adapter
 	if not _robot_adapter:
-		logging_service = get_logging_service()
+		logging_service = get_logging_service(name="RobotAdapter")
 		_robot_adapter = RobotAdapter(logging_service=logging_service)
 	return _robot_adapter
 
@@ -46,7 +42,7 @@ def get_robot_adapter() -> RobotAdapter:
 def get_robot_worker() -> RobotWorker:
 	global _robot_worker
 	if not _robot_worker:
-		logging_service = get_logging_service()
+		logging_service = get_logging_service(name="RobotWorker")
 		redis_adapter = get_redis_adapter()
 		robot_adapter = get_robot_adapter()
 		_robot_worker = RobotWorker(
@@ -61,7 +57,7 @@ def get_robot_worker() -> RobotWorker:
 def get_robot_commander() -> RobotCommander:
 	global _robot_commander
 	if not _robot_commander:
-		logging_service = get_logging_service()
+		logging_service = get_logging_service(name="RobotCommander")
 		redis_adapter = get_redis_adapter()
 
 		_robot_commander = RobotCommander(
