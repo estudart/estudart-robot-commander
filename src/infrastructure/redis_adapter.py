@@ -1,9 +1,6 @@
 from collections.abc import Iterator
 
-try:
-	import redis  # type: ignore
-except ImportError:  # pragma: no cover
-	redis = None  # type: ignore[assignment]
+import redis
 
 
 class RedisAdapter:

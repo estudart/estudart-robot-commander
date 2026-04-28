@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from src.presentation.dependencies import get_robot_routine
+from src.presentation.dependencies import get_robot_worker
 
 
 def main() -> None:
-	robot_routine = get_robot_routine()
-	robot_routine.start_loop()
+	robot_worker = get_robot_worker()
+	robot_worker.start_loop()
 
 
 if __name__ == "__main__":
