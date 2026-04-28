@@ -66,7 +66,6 @@ class RobotWorker:
 				return
 
 		cmd = raw.lower()
-		self._logging.info(f"Command received: {cmd!r}")
 
 		if cmd in {"stop", "halt"}:
 			with self._thread_lock:
@@ -80,7 +79,6 @@ class RobotWorker:
 		if not evt:
 			return
 
-		self._logging.info(f"Alert received: {evt!r}")
 		if evt in {"knife", "gun"}:
 			with self._thread_lock:
 				routine_patrol(robot_adapter=self._robot)

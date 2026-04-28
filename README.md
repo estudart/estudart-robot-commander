@@ -41,7 +41,9 @@ python -m src.main
 ## WebSocket API
 
 - **Endpoint**: `ws://<host>:8000/v1/ws/publish`
-- **Payload**: plain-text commands, sent as a WebSocket text frame
+- **Payload**: JSON text frames with an explicit `channel`:
+  - `{"channel":"robot-command","command":"stop"}`
+  - `{"channel":"threat","command":"knife"}`
 
 Supported commands (current implementation):
 - `knife` / `gun`: triggers the routine in the worker
@@ -60,7 +62,14 @@ python -m pip install websockets
 Run the test publisher (publishes every 10 seconds by default):
 
 ```bash
-python -m src.tests.websocket_publish_test --host 127.0.0.1 --port 8000 --commands "knife,gun,stop" --interval 10
+python -m src.tests.websocket_publish_test --host 127.0.0.1 --port 8000 --mode command --commands "stop" --interval 10
+```
+
+Examples (explicit channels):
+
+```bash
+python -m src.tests.websocket_publish_test --mode command --command-channel robot-command --alert-channel threat --commands "stop"
+python -m src.tests.websocket_publish_test --mode alert --command-channel robot-command --alert-channel threat --commands "knife,gun"
 ```
 
 ### Option B: manual Redis publish (worker channel)
