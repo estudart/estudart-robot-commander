@@ -28,41 +28,40 @@ class RobotCommander:
 		*,
 		redis_adapter: RedisAdapter,
 		logging_service: LoggingService,
-		command_channel: str = "robot-command",
-		alert_channel: str = "threat",
+		command_channel: str = "robot-command"
 	) -> None:
 		self._redis_adapter = redis_adapter
 		self._logging = logging_service
 		self._command_channel = command_channel
-		self._alert_channel = alert_channel
 
-	def _handle_plain_command(self, command: str) -> None:
-		cmd = command.strip().lower()
+	def handle_commands(self, payload: str | dict[str, Any]) -> None:
+		"""
+		Publish robot commands to the command channel.
 
-		# Route alert events to the alert channel (worker alert thread).
-		if cmd in {"knife", "gun"}:
-			self._logging.info(f"Alert received: {cmd!r}")
-			self._redis_adapter.publish(channel=self._alert_channel, message=cmd)
-			return
+		Supports:
+		- plain string commands (e.g. "stop")
+		- JSON movement payloads (dict with type=movement or direction present)
+		- JSON command payloads (dict with command="stop")
+		"""
+		if isinstance(payload, dict):
+			command_type = str(payload.get("type", "")).strip().lower()
+			if command_type == "movement" or "direction" in payload:
+				direction = str(payload.get("direction", "")).strip().lower()
+				duration_s = float(payload.get("duration_s", 0.5))
 
-		self._logging.info(f"Command received: {cmd!r}")
-		# Otherwise publish as a robot command.
-		self._redis_adapter.publish(channel=self._command_channel, message=cmd)
+				self._logging.info(f"Movement command: direction={direction!r} duration_s={duration_s:.2f}")
 
-	def _handle_movement(self, payload: dict[str, Any]) -> None:
-		direction = str(payload.get("direction", "")).strip().lower()
-		duration_s = float(payload.get("duration_s", 0.5))
+				message = json.dumps(
+					{
+						"type": "movement",
+						"direction": direction,
+						"duration_s": duration_s,
+					}
+				)
+				self._redis_adapter.publish(channel=self._command_channel, message=message)
+				return
 
-		self._logging.info(f"Movement command: direction={direction!r} duration_s={duration_s:.2f}")
-
-		message = json.dumps(
-			{
-				"type": "movement",
-				"direction": direction,
-				"duration_s": duration_s,
-			}
-		)
-		self._redis_adapter.publish(channel=self._command_channel, message=message)
+			self._logging.info(f"Unknown command: {command_type!r}")
 
 	async def handle_socket(self, websocket: WebSocket) -> None:
 		try:
@@ -79,23 +78,21 @@ class RobotCommander:
 					try:
 						payload = json.loads(raw)
 					except json.JSONDecodeError:
-						self._handle_plain_command(raw)
-						continue
-
-					command = payload.get("command")
-					if isinstance(command, str) and command.strip():
-						self._handle_plain_command(command)
+						self._logging.error("Invalid JSON payload received; expected a JSON object with 'channel'.")
 						continue
 
 					channel = str(payload.get("channel", "")).strip()
-					if channel == "movement":
-						self._handle_movement(payload)
+					if channel == self._command_channel:
+						self.handle_commands(payload)
+						continue
+					else:
+						self._logging.error(f"Unknown channel: {channel!r}")
 						continue
 
-					self._logging.warning("Unknown JSON payload; expected movement or command.")
-					continue
-
-				# Plain text -> execute immediately
-				self._handle_plain_command(raw)
+				# Plain text payloads are not accepted: require explicit channel.
+				self._logging.error(
+					"Plain text payload received; expected JSON with 'channel' "
+					f"({self._command_channel!r}."
+				)
 		except WebSocketDisconnect:
 			return

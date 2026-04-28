@@ -9,31 +9,32 @@ from src.infrastructure.redis_adapter import RedisAdapter
 from src.infrastructure.robot_adapter import RobotAdapter
 
 
-_logging_service: Optional[LoggingService] = None
 _redis_adapter: Optional[RedisAdapter] = None
 _robot_adapter: Optional[RobotAdapter] = None
 _robot_worker: Optional[RobotWorker] = None
 _robot_commander: Optional[RobotCommander] = None
 
+# Channel naming (keep consistent across WSS + Redis worker).
+_COMMAND_CHANNEL = "robot-command"
+_ALERT_CHANNEL = "threat"
+_REDIS_HOST = "192.168.68.100"
 
-def get_logging_service() -> LoggingService:
-	global _logging_service
-	if not _logging_service:
-		_logging_service = LoggingService(name="RobotCommander")
-	return _logging_service
+
+def get_logging_service(name: str) -> LoggingService:
+	return LoggingService(name=name)
 
 
 def get_redis_adapter() -> RedisAdapter:
 	global _redis_adapter
 	if not _redis_adapter:
-		_redis_adapter = RedisAdapter()
+		_redis_adapter = RedisAdapter(host=_REDIS_HOST)
 	return _redis_adapter
 
 
 def get_robot_adapter() -> RobotAdapter:
 	global _robot_adapter
 	if not _robot_adapter:
-		logging_service = get_logging_service()
+		logging_service = get_logging_service(name="RobotAdapter")
 		_robot_adapter = RobotAdapter(logging_service=logging_service)
 	return _robot_adapter
 
@@ -41,25 +42,28 @@ def get_robot_adapter() -> RobotAdapter:
 def get_robot_worker() -> RobotWorker:
 	global _robot_worker
 	if not _robot_worker:
-		logging_service = get_logging_service()
+		logging_service = get_logging_service(name="RobotWorker")
 		redis_adapter = get_redis_adapter()
 		robot_adapter = get_robot_adapter()
 		_robot_worker = RobotWorker(
 			robot_adapter=robot_adapter,
 			redis_adapter=redis_adapter,
 			logging_service=logging_service,
+			command_channel=_COMMAND_CHANNEL,
+			alert_channel=_ALERT_CHANNEL,
 		)
 	return _robot_worker
 
 def get_robot_commander() -> RobotCommander:
 	global _robot_commander
 	if not _robot_commander:
-		logging_service = get_logging_service()
+		logging_service = get_logging_service(name="RobotCommander")
 		redis_adapter = get_redis_adapter()
 
 		_robot_commander = RobotCommander(
 			redis_adapter=redis_adapter,
 			logging_service=logging_service,
+			command_channel=_COMMAND_CHANNEL
 		)
 
 	return _robot_commander

@@ -8,6 +8,30 @@ Robot control service intended to run **only on a Raspberry Pi** connected to a 
 - **Worker container**: runs a `RobotRoutine` loop that listens to Redis and triggers routines.
 - **Robot adapter**: `RobotAdapter` is currently a stub implementation (logs actions only).
 
+## Architecture and flow
+
+```mermaid
+flowchart LR
+  client["WebSocket client"] -->|JSON message| wss["WSS API"]
+
+  subgraph api["API container"]
+    wss --> commander["RobotCommander (dispatch)"]
+  end
+
+  commander -->|PUBLISH| redis[("Redis")]
+
+  camera["CameraThreatDetector"] -->|PUBLISH| redis
+
+  redis -->|SUBSCRIBE: robot-command| cmdThread["Worker thread: command consumer"]
+  redis -->|SUBSCRIBE: threat| alertThread["Worker thread: alert consumer"]
+
+  subgraph worker["Worker container"]
+    cmdThread --> workerSvc[RobotWorker]
+    alertThread --> workerSvc
+    workerSvc --> adapter["RobotAdapter (hardware abstraction)"]
+  end
+```
+
 ## Requirements
 
 - Docker (recommended on the Raspberry Pi)
@@ -41,7 +65,9 @@ python -m src.main
 ## WebSocket API
 
 - **Endpoint**: `ws://<host>:8000/v1/ws/publish`
-- **Payload**: plain-text commands, sent as a WebSocket text frame
+- **Payload**: JSON text frames with an explicit `channel`:
+  - `{"channel":"robot-command","command":"stop"}`
+  - `{"channel":"threat","command":"knife"}`
 
 Supported commands (current implementation):
 - `knife` / `gun`: triggers the routine in the worker
@@ -60,7 +86,15 @@ python -m pip install websockets
 Run the test publisher (publishes every 10 seconds by default):
 
 ```bash
-python -m src.tests.websocket_publish_test --host 127.0.0.1 --port 8000 --commands "knife,gun,stop" --interval 10
+python -m src.tests.websocket_publish_test --host 127.0.0.1 --port 8000 --mode command --commands "stop" --interval 10
+```
+
+Examples (explicit channels):
+
+```bash
+python -m src.tests.websocket_publish_test --mode command --command-channel robot-command --alert-channel threat --commands "stop"
+python -m src.tests.websocket_publish_test --mode alert --command-channel robot-command --alert-channel threat --commands "knife,gun"
+python -m src.tests.websocket_publish_test --mode movement --command-channel robot-command --alert-channel threat --commands "forward,left,right,stop"
 ```
 
 ### Option B: manual Redis publish (worker channel)
