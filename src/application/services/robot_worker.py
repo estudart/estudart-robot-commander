@@ -81,6 +81,7 @@ class RobotWorker:
 
 		if evt in {"knife", "gun"}:
 			with self._thread_lock:
+				self._logging.info("Patrol routine triggered...")
 				routine_patrol(robot_adapter=self._robot)
 			return
 
