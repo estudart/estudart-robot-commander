@@ -32,6 +32,7 @@ class RobotWorker:
 		self._logging = logging_service
 		self._alert_channel = alert_channel
 		self._command_channel = command_channel
+		self._thread_lock = threading.Lock()
 		self.running = False
 
 	def _handle_command(self, payload: str) -> None:
@@ -51,23 +52,25 @@ class RobotWorker:
 				duration_s = float(data.get("duration_s", 0.5))
 				self._logging.info(f"Movement: {direction!r} duration_s={duration_s:.2f}")
 
-				if direction == "forward":
-					self._robot.move_forward(duration_s)
-				elif direction == "left":
-					self._robot.turn_left(duration_s)
-				elif direction == "right":
-					self._robot.turn_right(duration_s)
-				elif direction in {"stop", "halt"}:
-					self._robot.stop()
-				else:
-					self._logging.warning(f"Unknown movement direction: {direction!r}")
+				with self._thread_lock:
+					if direction == "forward":
+						self._robot.move_forward(duration_s)
+					elif direction == "left":
+						self._robot.turn_left(duration_s)
+					elif direction == "right":
+						self._robot.turn_right(duration_s)
+					elif direction in {"stop", "halt"}:
+						self._robot.stop()
+					else:
+						self._logging.warning(f"Unknown movement direction: {direction!r}")
 				return
 
 		cmd = raw.lower()
 		self._logging.info(f"Command received: {cmd!r}")
 
 		if cmd in {"stop", "halt"}:
-			self._robot.stop()
+			with self._thread_lock:
+				self._robot.stop()
 			return
 
 		self._logging.warning(f"Unknown command: {cmd!r}.")
@@ -79,7 +82,8 @@ class RobotWorker:
 
 		self._logging.info(f"Alert received: {evt!r}")
 		if evt in {"knife", "gun"}:
-			routine_patrol(robot_adapter=self._robot)
+			with self._thread_lock:
+				routine_patrol(robot_adapter=self._robot)
 			return
 
 		self._logging.warning(f"Unknown alert: {evt!r}.")
