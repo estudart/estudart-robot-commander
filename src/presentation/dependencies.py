@@ -15,6 +15,10 @@ _robot_adapter: Optional[RobotAdapter] = None
 _robot_worker: Optional[RobotWorker] = None
 _robot_commander: Optional[RobotCommander] = None
 
+# Channel naming (keep consistent across WSS + Redis worker).
+_COMMAND_CHANNEL = "robot-command"
+_ALERT_CHANNEL = "threat"
+
 
 def get_logging_service() -> LoggingService:
 	global _logging_service
@@ -48,6 +52,8 @@ def get_robot_worker() -> RobotWorker:
 			robot_adapter=robot_adapter,
 			redis_adapter=redis_adapter,
 			logging_service=logging_service,
+			command_channel=_COMMAND_CHANNEL,
+			alert_channel=_ALERT_CHANNEL,
 		)
 	return _robot_worker
 
@@ -60,6 +66,8 @@ def get_robot_commander() -> RobotCommander:
 		_robot_commander = RobotCommander(
 			redis_adapter=redis_adapter,
 			logging_service=logging_service,
+			command_channel=_COMMAND_CHANNEL,
+			alert_channel=_ALERT_CHANNEL,
 		)
 
 	return _robot_commander
