@@ -12,21 +12,23 @@ Robot control service intended to run **only on a Raspberry Pi** connected to a 
 
 ```mermaid
 flowchart LR
-  client["WebSocket client<br/>(web or test script)"] -->|JSON message<br/>channel=...| wss["WSS API<br/>/v1/ws/publish"]
+  client["WebSocket client"] -->|JSON message| wss["WSS API"]
 
   subgraph api["API container"]
-    wss --> commander["RobotCommander<br/>(dispatch)"]
+    wss --> commander["RobotCommander (dispatch)"]
   end
 
   commander -->|PUBLISH| redis[("Redis")]
 
-  redis -->|SUBSCRIBE: robot-command| cmdThread["Worker thread<br/>Command consumer"]
-  redis -->|SUBSCRIBE: threat| alertThread["Worker thread<br/>Alert consumer"]
+  camera["CameraThreatDetector"] -->|PUBLISH| redis
+
+  redis -->|SUBSCRIBE: robot-command| cmdThread["Worker thread: command consumer"]
+  redis -->|SUBSCRIBE: threat| alertThread["Worker thread: alert consumer"]
 
   subgraph worker["Worker container"]
     cmdThread --> workerSvc[RobotWorker]
     alertThread --> workerSvc
-    workerSvc --> adapter["RobotAdapter<br/>(hardware abstraction)"]
+    workerSvc --> adapter["RobotAdapter (hardware abstraction)"]
   end
 ```
 
