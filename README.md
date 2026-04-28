@@ -8,6 +8,28 @@ Robot control service intended to run **only on a Raspberry Pi** connected to a 
 - **Worker container**: runs a `RobotRoutine` loop that listens to Redis and triggers routines.
 - **Robot adapter**: `RobotAdapter` is currently a stub implementation (logs actions only).
 
+## Architecture and flow
+
+```mermaid
+flowchart LR
+  client["WebSocket client<br/>(web or test script)"] -->|JSON message<br/>channel=...| wss["WSS API<br/>/v1/ws/publish"]
+
+  subgraph api["API container"]
+    wss --> commander["RobotCommander<br/>(dispatch)"]
+  end
+
+  commander -->|PUBLISH| redis[("Redis")]
+
+  redis -->|SUBSCRIBE: robot-command| cmdThread["Worker thread<br/>Command consumer"]
+  redis -->|SUBSCRIBE: threat| alertThread["Worker thread<br/>Alert consumer"]
+
+  subgraph worker["Worker container"]
+    cmdThread --> workerSvc[RobotWorker]
+    alertThread --> workerSvc
+    workerSvc --> adapter["RobotAdapter<br/>(hardware abstraction)"]
+  end
+```
+
 ## Requirements
 
 - Docker (recommended on the Raspberry Pi)
