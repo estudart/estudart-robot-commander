@@ -28,25 +28,11 @@ class RobotCommander:
 		*,
 		redis_adapter: RedisAdapter,
 		logging_service: LoggingService,
-		command_channel: str = "robot-command",
-		alert_channel: str = "threat",
+		command_channel: str = "robot-command"
 	) -> None:
 		self._redis_adapter = redis_adapter
 		self._logging = logging_service
 		self._command_channel = command_channel
-		self._alert_channel = alert_channel
-		self._channels_list = [
-			self._command_channel, 
-			self._alert_channel
-		]
-
-	def handle_alerts(self, command: str) -> None:
-		"""Publish alert events to the alert channel."""
-		cmd = str(command).strip().lower()
-		if not cmd:
-			return
-		self._logging.info(f"Alert received: {cmd!r}")
-		self._redis_adapter.publish(channel=self._alert_channel, message=cmd)
 
 	def handle_commands(self, payload: str | dict[str, Any]) -> None:
 		"""
@@ -58,29 +44,13 @@ class RobotCommander:
 		- JSON command payloads (dict with command="stop")
 		"""
 		if isinstance(payload, dict):
-			if str(payload.get("type", "")).strip().lower() == "movement" or "direction" in payload:
+			command_type = str(payload.get("type", "")).strip().lower()
+			if command_type == "movement" or "direction" in payload:
 				self._handle_movement(payload)
 				return
 
-			command = payload.get("command")
-			if isinstance(command, str) and command.strip():
-				cmd = command.strip().lower()
-				self._logging.info(f"Command received: {cmd!r}")
-				self._redis_adapter.publish(channel=self._command_channel, message=cmd)
-				return
+			self._logging.info(f"Unknown command: {command_type!r}")
 
-			# Unknown dict payload: fall back to string form.
-			payload = json.dumps(payload)
-
-		cmd = str(payload).strip().lower()
-		if not cmd:
-			return
-		self._logging.info(f"Command received: {cmd!r}")
-		self._redis_adapter.publish(channel=self._command_channel, message=cmd)
-
-	def _handle_plain_command(self, command: str) -> None:
-		"""Backward-compatible alias for plain commands."""
-		self.handle_commands(command)
 
 	def _handle_movement(self, payload: dict[str, Any]) -> None:
 		direction = str(payload.get("direction", "")).strip().lower()
@@ -119,13 +89,6 @@ class RobotCommander:
 					if channel == self._command_channel:
 						self.handle_commands(payload)
 						continue
-					elif channel == self._alert_channel:
-						command = payload.get("command")
-						if isinstance(command, str) and command.strip():
-							self.handle_alerts(command)
-						else:
-							self.handle_alerts(raw)
-						continue
 					else:
 						self._logging.error(f"Unknown channel: {channel!r}")
 						continue
@@ -133,7 +96,7 @@ class RobotCommander:
 				# Plain text payloads are not accepted: require explicit channel.
 				self._logging.error(
 					"Plain text payload received; expected JSON with 'channel' "
-					f"({self._command_channel!r} or {self._alert_channel!r})."
+					f"({self._command_channel!r}."
 				)
 		except WebSocketDisconnect:
 			return

@@ -63,8 +63,7 @@ def get_robot_commander() -> RobotCommander:
 		_robot_commander = RobotCommander(
 			redis_adapter=redis_adapter,
 			logging_service=logging_service,
-			command_channel=_COMMAND_CHANNEL,
-			alert_channel=_ALERT_CHANNEL,
+			command_channel=_COMMAND_CHANNEL
 		)
 
 	return _robot_commander
