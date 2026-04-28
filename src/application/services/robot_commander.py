@@ -46,26 +46,22 @@ class RobotCommander:
 		if isinstance(payload, dict):
 			command_type = str(payload.get("type", "")).strip().lower()
 			if command_type == "movement" or "direction" in payload:
-				self._handle_movement(payload)
+				direction = str(payload.get("direction", "")).strip().lower()
+				duration_s = float(payload.get("duration_s", 0.5))
+
+				self._logging.info(f"Movement command: direction={direction!r} duration_s={duration_s:.2f}")
+
+				message = json.dumps(
+					{
+						"type": "movement",
+						"direction": direction,
+						"duration_s": duration_s,
+					}
+				)
+				self._redis_adapter.publish(channel=self._command_channel, message=message)
 				return
 
 			self._logging.info(f"Unknown command: {command_type!r}")
-
-
-	def _handle_movement(self, payload: dict[str, Any]) -> None:
-		direction = str(payload.get("direction", "")).strip().lower()
-		duration_s = float(payload.get("duration_s", 0.5))
-
-		self._logging.info(f"Movement command: direction={direction!r} duration_s={duration_s:.2f}")
-
-		message = json.dumps(
-			{
-				"type": "movement",
-				"direction": direction,
-				"duration_s": duration_s,
-			}
-		)
-		self._redis_adapter.publish(channel=self._command_channel, message=message)
 
 	async def handle_socket(self, websocket: WebSocket) -> None:
 		try:
