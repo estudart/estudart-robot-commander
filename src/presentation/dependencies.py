@@ -18,6 +18,7 @@ _robot_commander: Optional[RobotCommander] = None
 # Channel naming (keep consistent across WSS + Redis worker).
 _COMMAND_CHANNEL = "robot-command"
 _ALERT_CHANNEL = "threat"
+_REDIS_HOST = "192.168.68.100"
 
 
 def get_logging_service() -> LoggingService:
@@ -30,7 +31,9 @@ def get_logging_service() -> LoggingService:
 def get_redis_adapter() -> RedisAdapter:
 	global _redis_adapter
 	if not _redis_adapter:
-		_redis_adapter = RedisAdapter()
+		_redis_adapter = RedisAdapter(
+			host=_REDIS_HOST
+		)
 	return _redis_adapter
 
 
