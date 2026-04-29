@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import threading
+import time
+from datetime import datetime, timezone
 from typing import Any
 
 from src.application.routines.patrol import routine_patrol
@@ -18,6 +20,8 @@ class RobotWorker:
 	robot logic behind `RobotAdapter` so hardware can be swapped later.
 	"""
 
+	_STATE_TTL_SECONDS = 3.0
+
 	def __init__(
 		self,
 		*,
@@ -25,15 +29,15 @@ class RobotWorker:
 		redis_adapter: RedisAdapter,
 		logging_service: LoggingService,
 		alert_channel: str = "threat",
-		command_channel: str = "robot-command",
+		robot_state_key: str = "robot:state",
 	) -> None:
 		self._robot = robot_adapter
 		self._redis = redis_adapter
 		self._logging = logging_service
 		self._alert_channel = alert_channel
-		self._command_channel = command_channel
 		self._thread_lock = threading.Lock()
 		self.running = False
+		self._robot_state_key = robot_state_key
 
 	def _handle_command(self, payload: str) -> None:
 		raw = str(payload).strip()
@@ -49,18 +53,19 @@ class RobotWorker:
 
 			if isinstance(data, dict) and str(data.get("type", "")).strip() == "movement":
 				direction = str(data.get("direction", "")).strip().lower()
-				duration_s = float(data.get("duration_s", 0.5))
-				self._logging.info(f"Movement: {direction!r} duration_s={duration_s:.2f}")
+				steps = int(data.get("steps", 1))
+				speed = float(data.get("speed", 0.5))
+				self._logging.info(f"Movement: {direction!r} steps={steps} speed={speed:.2f}")
 
 				with self._thread_lock:
 					if direction == "forward":
-						self._robot.move_forward(duration_s)
+						self._robot.move_forward(steps, speed)
 					elif direction == "backward":
-						self._robot.move_backward(duration_s)
+						self._robot.move_backward(steps, speed)
 					elif direction == "left":
-						self._robot.turn_left(duration_s)
+						self._robot.turn_left(steps, speed)
 					elif direction == "right":
-						self._robot.turn_right(duration_s)
+						self._robot.turn_right(steps, speed)
 					elif direction in {"stop", "halt"}:
 						self._robot.stop()
 					else:
@@ -89,14 +94,42 @@ class RobotWorker:
 
 		self._logging.warning(f"Unknown alert: {evt!r}.")
 
+	def _is_stale(self, data: dict) -> bool:
+		"""Return True if the state timestamp is older than _STATE_TTL_SECONDS."""
+		ts_str = data.get("ts")
+		if not ts_str:
+			return False
+		try:
+			ts = datetime.fromisoformat(ts_str)
+			age = (datetime.now(timezone.utc) - ts).total_seconds()
+			return age > self._STATE_TTL_SECONDS
+		except ValueError:
+			return False
+
 	def _consume_commands(self) -> None:
-		for message in self._redis.consume(self._command_channel):
+		while True:
 			if not self.running:
 				return
 			try:
-				self._handle_command(str(message))
+				raw = self._redis.get_key(self._robot_state_key)
+				if not raw:
+					time.sleep(0.3)
+					continue
+
+				# For JSON states, skip if the command is stale.
+				if raw.startswith("{") and raw.endswith("}"):
+					try:
+						data = json.loads(raw)
+						if self._is_stale(data):
+							time.sleep(0.3)
+							continue
+					except json.JSONDecodeError:
+						pass
+
+				self._handle_command(raw)
 			except Exception as exc:  # keep loop alive on test/stub
 				self._logging.error("Error while handling robot command", exc=exc)
+			time.sleep(0.3)
 
 	def _consume_alerts(self) -> None:
 		for message in self._redis.consume(self._alert_channel):
@@ -109,10 +142,11 @@ class RobotWorker:
 
 	def start_loop(self) -> None:
 		self.running = True
+		self._redis.set_key(self._robot_state_key, "stop")
 		self._robot.connect()
 
 		self._logging.info(
-			f"RobotWorker started. Commands={self._command_channel!r} Alerts={self._alert_channel!r}."
+			f"RobotWorker started. Alerts={self._alert_channel!r}."
 		)
 		self._logging.info("Waiting for Redis events.")
 
