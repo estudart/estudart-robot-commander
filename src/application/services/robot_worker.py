@@ -55,6 +55,8 @@ class RobotWorker:
 				with self._thread_lock:
 					if direction == "forward":
 						self._robot.move_forward(duration_s)
+					if direction == "backward":
+						self._robot.move_backward(duration_s)
 					elif direction == "left":
 						self._robot.turn_left(duration_s)
 					elif direction == "right":

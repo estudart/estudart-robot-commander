@@ -42,6 +42,10 @@ class RobotAdapter:
 		self._logging.info(f"RobotAdapter.move_forward(): {duration_s:.2f}s (stub)")
 		time.sleep(max(0.0, float(duration_s)))
 
+	def move_backward(self, duration_s: float = 1.0) -> None:
+		self._logging.info(f"RobotAdapter.move_backward(): {duration_s:.2f}s (stub)")
+		time.sleep(max(0.0, float(duration_s)))
+
 	def turn_left(self, duration_s: float = 0.5) -> None:
 		self._logging.info(f"RobotAdapter.turn_left(): {duration_s:.2f}s (stub)")
 		time.sleep(max(0.0, float(duration_s)))
