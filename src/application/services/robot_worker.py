@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import threading
 import time
+from datetime import datetime, timezone
 from typing import Any
 
 from src.application.routines.patrol import routine_patrol
@@ -19,6 +20,8 @@ class RobotWorker:
 	robot logic behind `RobotAdapter` so hardware can be swapped later.
 	"""
 
+	_STATE_TTL_SECONDS = 3.0
+
 	def __init__(
 		self,
 		*,
@@ -26,7 +29,7 @@ class RobotWorker:
 		redis_adapter: RedisAdapter,
 		logging_service: LoggingService,
 		alert_channel: str = "threat",
-		robot_state_key: str = "robot:state"
+		robot_state_key: str = "robot:state",
 	) -> None:
 		self._robot = robot_adapter
 		self._redis = redis_adapter
@@ -91,13 +94,39 @@ class RobotWorker:
 
 		self._logging.warning(f"Unknown alert: {evt!r}.")
 
+	def _is_stale(self, data: dict) -> bool:
+		"""Return True if the state timestamp is older than _STATE_TTL_SECONDS."""
+		ts_str = data.get("ts")
+		if not ts_str:
+			return False
+		try:
+			ts = datetime.fromisoformat(ts_str)
+			age = (datetime.now(timezone.utc) - ts).total_seconds()
+			return age > self._STATE_TTL_SECONDS
+		except ValueError:
+			return False
+
 	def _consume_commands(self) -> None:
 		while True:
-			current_state = self._redis.get_key(self._robot_state_key)
 			if not self.running:
 				return
 			try:
-				self._handle_command(str(current_state))
+				raw = self._redis.get_key(self._robot_state_key)
+				if not raw:
+					time.sleep(0.3)
+					continue
+
+				# For JSON states, skip if the command is stale.
+				if raw.startswith("{") and raw.endswith("}"):
+					try:
+						data = json.loads(raw)
+						if self._is_stale(data):
+							time.sleep(0.3)
+							continue
+					except json.JSONDecodeError:
+						pass
+
+				self._handle_command(raw)
 			except Exception as exc:  # keep loop alive on test/stub
 				self._logging.error("Error while handling robot command", exc=exc)
 			time.sleep(0.3)

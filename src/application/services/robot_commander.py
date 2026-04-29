@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import WebSocket
@@ -29,13 +30,12 @@ class RobotCommander:
 		redis_adapter: RedisAdapter,
 		logging_service: LoggingService,
 		command_channel: str = "robot-command",
-		robot_state_key: str = "robot:state"
+		robot_state_key: str = "robot:state",
 	) -> None:
 		self._redis_adapter = redis_adapter
 		self._logging = logging_service
 		self._command_channel = command_channel
 		self._robot_state_key = robot_state_key
-
 
 	def handle_commands(self, payload: str | dict[str, Any]) -> None:
 		"""
@@ -54,16 +54,17 @@ class RobotCommander:
 
 				self._logging.info(f"Movement command: direction={direction!r} steps={steps} speed={speed:.2f}")
 
-				message = json.dumps(
-					{
-						"type": "movement",
-						"direction": direction,
-						"steps": steps,
-						"speed": speed,
-					}
-				)
-				self._redis_adapter.set_key(key=self._robot_state_key, value=message)
-				return
+			message = json.dumps(
+				{
+					"type": "movement",
+					"direction": direction,
+					"steps": steps,
+					"speed": speed,
+					"ts": datetime.now(timezone.utc).isoformat(),
+				}
+			)
+			self._redis_adapter.set_key(key=self._robot_state_key, value=message)
+			return
 
 			self._logging.info(f"Unknown command: {command_type!r}")
 
