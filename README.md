@@ -5,7 +5,7 @@ Robot control service intended to run **only on a Raspberry Pi** connected to a 
 ## What it does
 
 - **API container (WebSocket)**: exposes `/v1/ws/publish` to receive commands over WebSocket.
-- **Worker container**: runs a `RobotRoutine` loop that listens to Redis and triggers routines.
+- **Worker container**: runs a `RobotWorker` loop that reads robot state from Redis and triggers routines.
 - **Robot adapter**: `RobotAdapter` is currently a stub implementation (logs actions only).
 
 ## Architecture and flow
@@ -18,11 +18,11 @@ flowchart LR
     wss --> commander["RobotCommander (dispatch)"]
   end
 
-  commander -->|PUBLISH| redis[("Redis")]
+  commander -->|SET robot:state| redis[("Redis")]
 
-  camera["CameraThreatDetector"] -->|PUBLISH| redis
+  camera["CameraThreatDetector"] -->|PUBLISH threat events| redis
 
-  redis -->|SUBSCRIBE: robot-command| cmdThread["Worker thread: command consumer"]
+  redis -->|GET robot:state (poll)| cmdThread["Worker thread: state poller"]
   redis -->|SUBSCRIBE: threat| alertThread["Worker thread: alert consumer"]
 
   subgraph worker["Worker container"]
@@ -35,24 +35,28 @@ flowchart LR
 ## Requirements
 
 - Docker (recommended on the Raspberry Pi)
-- A Redis instance reachable from the Raspberry Pi (defaults to `localhost:6379` for the worker)
+- If running locally (no Docker): a Redis instance reachable from the process (defaults to `localhost:6379`)
 
 ## Run with Docker (recommended)
 
 ```bash
-make run
+make up
 ```
 
-This command builds both images, starts both containers, and streams logs to the current terminal session.
+This uses `docker-compose.yaml` to build and run:
+
+- `raspberry-pi-wss-server` (WebSocket API)
+- `raspberry-pi-worker` (Robot worker loop)
+- `redis` (local Redis used by both containers)
 
 ### Useful Make targets
 
 ```bash
-make build        # Build both images
-make up           # Start both containers and follow logs
-make logs         # Follow logs for both containers
-make down         # Stop and remove both containers
-make clean        # Remove containers and images
+make build        # Build images
+make up           # Start all services (builds if needed)
+make logs         # Follow logs
+make down         # Stop services
+make clean        # Remove services + volumes
 ```
 
 ## Run locally (no Docker)
@@ -72,6 +76,16 @@ python -m src.main
 Supported commands (current implementation):
 - `knife` / `gun`: triggers the routine in the worker
 - `stop`: triggers a stop in the worker (stub)
+
+## Robot state (Redis)
+
+The API writes the latest robot state to a Redis key:
+
+- **Key**: `robot:state`
+- **Value**: a JSON string, e.g.
+  - `{"type":"movement","direction":"forward","steps":1,"speed":0.5,"ts":"2026-04-29T15:00:00.000000+00:00"}`
+
+The worker polls `robot:state` and ignores stale commands based on the embedded `ts` (TTL window).
 
 ## Send test commands
 
