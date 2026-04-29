@@ -28,18 +28,20 @@ class RobotCommander:
 		*,
 		redis_adapter: RedisAdapter,
 		logging_service: LoggingService,
-		command_channel: str = "robot-command"
+		command_channel: str = "robot-command",
+		robot_state_key: str = "robot:state"
 	) -> None:
 		self._redis_adapter = redis_adapter
 		self._logging = logging_service
 		self._command_channel = command_channel
+		self._robot_state_key = robot_state_key
+
 
 	def handle_commands(self, payload: str | dict[str, Any]) -> None:
 		"""
 		Publish robot commands to the command channel.
 
 		Supports:
-		- plain string commands (e.g. "stop")
 		- JSON movement payloads (dict with type=movement or direction present)
 		- JSON command payloads (dict with command="stop")
 		"""
@@ -47,18 +49,20 @@ class RobotCommander:
 			command_type = str(payload.get("type", "")).strip().lower()
 			if command_type == "movement" or "direction" in payload:
 				direction = str(payload.get("direction", "")).strip().lower()
-				duration_s = float(payload.get("duration_s", 0.5))
+				steps = int(payload.get("steps", 1))
+				speed = float(payload.get("speed", 0.5))
 
-				self._logging.info(f"Movement command: direction={direction!r} duration_s={duration_s:.2f}")
+				self._logging.info(f"Movement command: direction={direction!r} steps={steps} speed={speed:.2f}")
 
 				message = json.dumps(
 					{
 						"type": "movement",
 						"direction": direction,
-						"duration_s": duration_s,
+						"steps": steps,
+						"speed": speed,
 					}
 				)
-				self._redis_adapter.publish(channel=self._command_channel, message=message)
+				self._redis_adapter.set_key(key=self._robot_state_key, value=message)
 				return
 
 			self._logging.info(f"Unknown command: {command_type!r}")

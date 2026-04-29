@@ -14,9 +14,10 @@ _robot_adapter: Optional[RobotAdapter] = None
 _robot_worker: Optional[RobotWorker] = None
 _robot_commander: Optional[RobotCommander] = None
 
-# Channel naming (keep consistent across WSS + Redis worker).
+# Naming constants — single source of truth for all Redis keys and channels.
 _COMMAND_CHANNEL = "robot-command"
 _ALERT_CHANNEL = "threat"
+_ROBOT_STATE_KEY = "robot:state"
 _REDIS_HOST = "192.168.68.100"
 
 
@@ -49,8 +50,8 @@ def get_robot_worker() -> RobotWorker:
 			robot_adapter=robot_adapter,
 			redis_adapter=redis_adapter,
 			logging_service=logging_service,
-			command_channel=_COMMAND_CHANNEL,
 			alert_channel=_ALERT_CHANNEL,
+			robot_state_key=_ROBOT_STATE_KEY,
 		)
 	return _robot_worker
 
@@ -63,7 +64,8 @@ def get_robot_commander() -> RobotCommander:
 		_robot_commander = RobotCommander(
 			redis_adapter=redis_adapter,
 			logging_service=logging_service,
-			command_channel=_COMMAND_CHANNEL
+			command_channel=_COMMAND_CHANNEL,
+			robot_state_key=_ROBOT_STATE_KEY,
 		)
 
 	return _robot_commander
