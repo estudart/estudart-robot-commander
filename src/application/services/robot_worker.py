@@ -142,7 +142,16 @@ class RobotWorker:
 
 	def start_loop(self) -> None:
 		self.running = True
-		self._redis.set_key(self._robot_state_key, "stop")
+		self._redis.set_key(
+			self._robot_state_key, 
+			json.dumps(
+				{
+					"type": "movement",
+					"direction": "stop",
+					"ts": datetime.now(timezone.utc).isoformat(),
+				}
+			)
+		)
 		self._robot.connect()
 
 		self._logging.info(
