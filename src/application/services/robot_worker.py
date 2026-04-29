@@ -20,7 +20,7 @@ class RobotWorker:
 	robot logic behind `RobotAdapter` so hardware can be swapped later.
 	"""
 
-	_STATE_TTL_SECONDS = 2.0
+	_STATE_TTL_SECONDS = 1.0
 
 	def __init__(
 		self,
@@ -113,7 +113,7 @@ class RobotWorker:
 			try:
 				raw = self._redis.get_key(self._robot_state_key)
 				if not raw:
-					time.sleep(0.2)
+					time.sleep(0.05)
 					continue
 
 				# For JSON states, skip if the command is stale.
@@ -121,7 +121,7 @@ class RobotWorker:
 					try:
 						data = json.loads(raw)
 						if self._is_stale(data):
-							time.sleep(0.3)
+							time.sleep(0.05)
 							continue
 					except json.JSONDecodeError:
 						pass
