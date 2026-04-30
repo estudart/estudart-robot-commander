@@ -18,7 +18,7 @@ _robot_commander: Optional[RobotCommander] = None
 _COMMAND_CHANNEL = "robot-command"
 _ALERT_CHANNEL = "threat"
 _ROBOT_STATE_KEY = "robot:state"
-_REDIS_HOST = "192.168.68.100"
+_REDIS_HOST = "localhost"
 
 
 def get_logging_service(name: str) -> LoggingService:
