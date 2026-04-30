@@ -12,7 +12,7 @@ class RedisAdapter:
 
 	def __init__(
 		self,
-		host: str = "192.168.68.100",
+		host: str = "redis",
 		port: int = 6379,
 		db: int = 0,
 		*,
