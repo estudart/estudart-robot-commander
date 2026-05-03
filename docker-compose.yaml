@@ -1,0 +1,25 @@
+services:
+  raspberry-pi-wss-server:
+    build:
+      context: .
+      dockerfile: src/presentation/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - _REDIS_HOST=redis
+    depends_on:
+      - redis
+
+  raspberry-pi-worker:
+    build:
+      context: .
+      dockerfile: src/Dockerfile
+    environment:
+      - _REDIS_HOST=redis
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"

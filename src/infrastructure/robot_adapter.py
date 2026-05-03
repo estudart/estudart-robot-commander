@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import time
-
 from src.application.services.logging_service import LoggingService
 
 
@@ -11,6 +9,10 @@ class RobotAdapter:
 
 	For now this is a test/stub implementation that only prints/logs actions.
 	Replace these methods later with GPIO / serial / ROS / etc.
+
+	All movement methods share the same signature: (steps, speed).
+	  steps — number of steps to execute (default 1)
+	  speed — normalised speed 0.0–1.0 (default 0.5)
 	"""
 
 	def __init__(self, *, logging_service: LoggingService) -> None:
@@ -34,19 +36,18 @@ class RobotAdapter:
 	def stop(self) -> None:
 		self._logging.info("RobotAdapter.stop(): STOP (stub)")
 
-	def beep(self, duration_s: float = 0.2) -> None:
-		self._logging.info(f"RobotAdapter.beep(): beep for {duration_s:.2f}s (stub)")
-		time.sleep(max(0.0, float(duration_s)))
+	def beep(self, steps: int = 1, speed: float = 0.5) -> None:
+		self._logging.info(f"RobotAdapter.beep(): steps={steps} speed={speed:.2f} (stub)")
 
-	def move_forward(self, duration_s: float = 1.0) -> None:
-		self._logging.info(f"RobotAdapter.move_forward(): {duration_s:.2f}s (stub)")
-		time.sleep(max(0.0, float(duration_s)))
+	def move_forward(self, steps: int = 1, speed: float = 0.5) -> None:
+		self._logging.info(f"RobotAdapter.move_forward(): steps={steps} speed={speed:.2f} (stub)")
 
-	def turn_left(self, duration_s: float = 0.5) -> None:
-		self._logging.info(f"RobotAdapter.turn_left(): {duration_s:.2f}s (stub)")
-		time.sleep(max(0.0, float(duration_s)))
+	def move_backward(self, steps: int = 1, speed: float = 0.5) -> None:
+		self._logging.info(f"RobotAdapter.move_backward(): steps={steps} speed={speed:.2f} (stub)")
 
-	def turn_right(self, duration_s: float = 0.5) -> None:
-		self._logging.info(f"RobotAdapter.turn_right(): {duration_s:.2f}s (stub)")
-		time.sleep(max(0.0, float(duration_s)))
+	def turn_left(self, steps: int = 1, speed: float = 0.5) -> None:
+		self._logging.info(f"RobotAdapter.turn_left(): steps={steps} speed={speed:.2f} (stub)")
+
+	def turn_right(self, steps: int = 1, speed: float = 0.5) -> None:
+		self._logging.info(f"RobotAdapter.turn_right(): steps={steps} speed={speed:.2f} (stub)")
 

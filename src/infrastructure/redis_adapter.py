@@ -12,7 +12,7 @@ class RedisAdapter:
 
 	def __init__(
 		self,
-		host: str = "192.168.68.100",
+		host: str = "redis",
 		port: int = 6379,
 		db: int = 0,
 		*,
@@ -62,6 +62,12 @@ class RedisAdapter:
 				pubsub.close()
 			except Exception:
 				pass
+
+	def set_key(self, key: str, value: str) -> None:
+		self._client.set(name=key, value=value)
+
+	def get_key(self, key: str):
+		return self._client.get(name=key)
 
 	def close(self) -> None:
 		"""Close the underlying Redis connection pool."""
